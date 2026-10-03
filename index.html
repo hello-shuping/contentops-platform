@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容运营平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0f10;
+            --panel: #18181b;
+            --panel-2: #1f1f23;
+            --border: #2a2a30;
+            --text: #e8e8ea;
+            --text-dim: #8a8a94;
+            --accent: #4f9cf9;
+            --user-bg: #2a2a30;
+        }
+
+        body {
+            font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            height: 85vh;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title h1 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .header-title p {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 12px;
+            max-width: 90%;
+        }
+
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+        .avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .avatar svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .msg.user .avatar { color: var(--text); }
+        .msg.ai .avatar { color: var(--accent); }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .msg.user .bubble {
+            background: var(--user-bg);
+            color: var(--text);
+        }
+
+        .msg.ai .bubble {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .bubble .cursor {
+            display: inline-block;
+            width: 6px;
+            height: 14px;
+            background: var(--accent);
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 1s steps(2) infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .input-area {
+            padding: 10px 16px 12px;
+            background: var(--panel);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .tool-btn {
+            padding: 6px 10px;
+            background: transparent;
+            color: var(--text-dim);
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.15s, background-color 0.15s;
+        }
+
+        .tool-btn:hover {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        .tool-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .input-row input:focus { border-color: var(--accent); }
+        .input-row input::placeholder { color: var(--text-dim); }
+
+        .input-row button {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .input-row button:hover:not(:disabled) { opacity: 0.88; }
+        .input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .chat::-webkit-scrollbar { width: 6px; }
+        .chat::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        .chat::-webkit-scrollbar-track { background: transparent; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">
+                <h1>内容运营平台</h1>
+                <p>内容创作 · 数据运营</p>
+            </div>
+        </div>
+        <div class="chat" id="chat">
+            <div class="msg ai">
+                <div class="avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="8" width="16" height="12" rx="3"/>
+                        <circle cx="9" cy="14" r="1" fill="currentColor"/>
+                        <circle cx="15" cy="14" r="1" fill="currentColor"/>
+                        <path d="M12 8V4"/>
+                        <circle cx="12" cy="3" r="1" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="bubble">你好，我是你的内容运营助手。
+
+/history 查看历史记录
+/delete 清空历史记录
+右下角导入 / 导出 Excel
+
+或者直接告诉我你想做什么。</div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="toolbar">
+                <button class="tool-btn" title="导入自己的文章" onclick="document.getElementById('excelInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 4v16"/>
+                        <path d="M6 10l6-6 6 6"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" title="导出自己的文章" onclick="downloadExcel()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 4v16"/>
+                        <path d="M6 14l6 6 6-6"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" title="导出爬取的爆文" onclick="downloadViral()">爆文库</button>
+                <button class="tool-btn" title="爬取小红书爆文" onclick="fetchViral()">爬爆文</button>
+                <button class="tool-btn" onclick="checkOriginality()">原创检测</button>
+            </div>
+            <div class="input-row">
+                <input id="input" placeholder="输入你的需求..." autofocus>
+                <button id="send" onclick="send()">发送</button>
+            </div>
+            <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="uploadExcel()">
+        </div>
+    </div>
+
+    <script>
+        let userId = localStorage.getItem('chat_user_id');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+            localStorage.setItem('chat_user_id', userId);
+        }
+        const chat = document.getElementById("chat");
+        const input = document.getElementById("input");
+        const sendBtn = document.getElementById("send");
+        const AUTH_KEY = "__AUTH_KEY__";
+
+        const AI_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1" fill="currentColor"/></svg>';
+        const USER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+
+        function addMsg(role, text = "") {
+            const msg = document.createElement("div");
+            msg.className = "msg " + role;
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.innerHTML = role === "user" ? USER_ICON : AI_ICON;
+
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+
+            const textEl = document.createElement("span");
+            textEl.textContent = text;
+            bubble.appendChild(textEl);
+
+            const cursor = document.createElement("span");
+            cursor.className = "cursor";
+            bubble.appendChild(cursor);
+
+            msg.appendChild(avatar);
+            msg.appendChild(bubble);
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+
+            return { bubble, textEl, cursor };
+        }
+
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            sendBtn.disabled = true;
+
+            const user = addMsg("user", text);
+            user.cursor.remove();
+
+            const ai = addMsg("ai");
+
+            try {
+                const response = await fetch("/chat_stream", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json", "X-Auth-Key": AUTH_KEY},
+                    body: JSON.stringify({user_id: userId, user_input: text})
+                });
+
+                if (!response.ok) {
+                    let detail = "请求失败";
+                    try {
+                        const err = await response.json();
+                        detail = err.detail || detail;
+                    } catch (_) {}
+                    ai.textEl.textContent = detail;
+                    ai.cursor.remove();
+                    sendBtn.disabled = false;
+                    input.focus();
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    fullText += decoder.decode(value, {stream: true});
+                    ai.textEl.textContent = fullText;
+                    chat.scrollTop = chat.scrollHeight;
+                }
+            } catch (e) {
+                ai.textEl.textContent = "抱歉，出错了：" + e.message;
+            }
+            ai.cursor.remove();
+            sendBtn.disabled = false;
+            input.focus();
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const ai = addMsg("ai", "正在导入，请稍候...");
+            ai.cursor.remove();
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const resp = await fetch("/import_own_articles", {
+                    method: "POST",
+                    headers: {"X-Auth-Key": AUTH_KEY},
+                    body: formData
+                });
+                let result = {};
+                try { result = await resp.json(); } catch (_) {}
+                if (resp.ok) {
+                    ai.textEl.textContent = "✅ " + (result.msg || "导入成功");
+                } else {
+                    ai.textEl.textContent = "❌ 导入失败：" + (result.detail || "未知错误");
+                }
+            } catch (e) {
+                ai.textEl.textContent = "❌ 上传出错：" + e.message;
+            }
+            fileInput.value = "";
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function downloadExcel() {
+            const ai = addMsg("ai", "正在导出...");
+            ai.cursor.remove();
+            try {
+                const resp = await fetch("/export_own_articles", {
+                    method: "GET",
+                    headers: {"X-Auth-Key": AUTH_KEY}
+                });
+                if (!resp.ok) {
+                    ai.textEl.textContent = "❌ 导出失败";
+                    return;
+                }
+                const blob = await resp.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "own_articles_export.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                ai.textEl.textContent = "✅ 导出成功，请查看下载文件夹";
+            } catch (e) {
+                ai.textEl.textContent = "❌ 导出出错：" + e.message;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function downloadViral() {
+            const ai = addMsg("ai", "正在导出爆文...");
+            ai.cursor.remove();
+            try {
+                const resp = await fetch("/export_viral_articles", {
+                    method: "GET",
+                    headers: {"X-Auth-Key": AUTH_KEY}
+                });
+                if (!resp.ok) {
+                    ai.textEl.textContent = "❌ 导出失败";
+                    return;
+                }
+                const blob = await resp.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "viral_articles_export.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                ai.textEl.textContent = "✅ 爆文导出成功，请查看下载文件夹";
+            } catch (e) {
+                ai.textEl.textContent = "❌ 导出出错：" + e.message;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function fetchViral() {
+            const keyword = prompt("输入关键词（比如：考研）：");
+            if (!keyword || !keyword.trim()) return;
+
+            const ai = addMsg("ai", `正在爬取「${keyword}」相关爆文，请稍候...`);
+            ai.cursor.remove();
+
+            const formData = new FormData();
+            formData.append("keyword", keyword);
+
+            try {
+                const resp = await fetch("/fetch_viral_articles", {
+                    method: "POST",
+                    headers: {"X-Auth-Key": AUTH_KEY},
+                    body: formData
+                });
+                const result = await resp.json();
+                if (resp.ok) {
+                    ai.textEl.textContent = "✅ " + result.result;
+                } else {
+                    ai.textEl.textContent = "❌ 爬取出错：" + (result.detail || "未知错误");
+                }
+            } catch (e) {
+                ai.textEl.textContent = "❌ 请求出错：" + e.message;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function checkOriginality() {
+            const text = prompt("粘贴文章内容：");
+            if (!text || !text.trim()) return;
+
+            const ai = addMsg("ai", "正在检测原创度...");
+            ai.cursor.remove();
+
+            const formData = new FormData();
+            formData.append("text", text);
+
+            try {
+                const resp = await fetch("/check_originality", {
+                    method: "POST",
+                    headers: {"X-Auth-Key": AUTH_KEY},
+                    body: formData
+                });
+                const result = await resp.json();
+
+                if (!resp.ok) {
+                    ai.textEl.textContent = "❌ 检测失败：" + (result.detail || "未知错误");
+                    chat.scrollTop = chat.scrollHeight;
+                    return;
+                }
+
+                if (result.ok) {
+                    ai.textEl.textContent = "✅ " + result.result;
+                    chat.scrollTop = chat.scrollHeight;
+                    return;
+                }
+
+                ai.textEl.textContent = "⚠️ " + result.result;
+                chat.scrollTop = chat.scrollHeight;
+
+                const pct = (result.similarity * 100).toFixed(0);
+                const yes = confirm(`相似度 ${pct}%，是否自动改写？`);
+                if (!yes) return;
+
+                const ai2 = addMsg("ai", "正在自动改写，请稍候...");
+                ai2.cursor.remove();
+
+                const fd2 = new FormData();
+                fd2.append("text", text);
+                const resp2 = await fetch("/auto_revise", {
+                    method: "POST",
+                    headers: {"X-Auth-Key": AUTH_KEY},
+                    body: fd2
+                });
+                const r2 = await resp2.json();
+                ai2.textEl.textContent = resp2.ok ? r2.result : ("❌ " + (r2.detail || "失败"));
+                chat.scrollTop = chat.scrollHeight;
+
+            } catch (e) {
+                ai.textEl.textContent = "❌ 请求出错：" + e.message;
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
+        });
+    </script>
+</body>
+</html>
