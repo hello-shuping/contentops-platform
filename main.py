@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from config import config, pool
 from db.ccs import init_db
 from content.own import init_db_own, import_from_excel
-from content.viral import init_db_viral, fetch_and_save
+from content.viral import init_db_viral
 from tools.check_originality import _check_similarity, auto_revise
 
 import agent
@@ -119,8 +119,8 @@ async def export_viral_articles(_: str = Depends(verify_key)):
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute("""
-                SELECT id, title, content, author, author_followers,
-                       platform, note_url, likes, collects, comments, collected_date
+                SELECT id, title, content, author, author_followers,platform, 
+                       note_url, likes, collects, comments, publish_date, collected_date
                 FROM viral_articles
                 ORDER BY id DESC
             """)
@@ -160,15 +160,29 @@ async def import_own_articles(
         except OSError:
             pass
 
-@app.post("/fetch_viral_articles")
-async def fetch_viral_articles(
-    keyword: str = Form(...),
+@app.post("/import_viral_articles")
+async def import_viral_articles_api(
+    file: UploadFile = File(...),
     _: str = Depends(verify_key),
 ):
-    result = await fetch_and_save(keyword, 20)
-    return {
-        "result": f"爬取「{keyword}」：新增 {result['success']} 条，跳过重复 {result['skipped']} 条"
-    }
+    from content.viral import import_from_excel_viral
+    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tmp_path = tmp.name
+    try:
+        shutil.copyfileobj(file.file, tmp)
+        tmp.close()
+        result = await import_from_excel_viral(tmp_path)
+        return {
+            "msg": f"导入成功：{result['success']}/{result['total']} 条（跳过 {result['skipped']} 条）"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"导入失败：{str(e)}")
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
 
 @app.post("/check_originality")
 async def check_originality_api(

@@ -1,9 +1,7 @@
 # content/viral.py
 
-import asyncio
 from openai import OpenAI
 from config import config, pool
-from content.redfox import search_xhs_notes
 
 
 # ========== 1. 建表 ==========
@@ -26,6 +24,7 @@ async def init_db_viral():
                     collects INTEGER,
                     comments INTEGER,
                     embedding vector(1024),
+                    publish_date DATE,
                     collected_date DATE DEFAULT CURRENT_DATE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -49,72 +48,90 @@ def get_embedding(text):
     return response.data[0].embedding
 
 
-# ========== 4. 单条写入 ==========
-async def save_viral_note(note: dict):
-    """把一条红狐笔记存入 viral_articles"""
-    title = note.get("workTitle", "")
-    content = note.get("workDesc", "")
+# ========== 4. 手动采集爆文导入 ==========
+async def import_from_excel_viral(path):
+    """
+    从 Excel 导入手动采集的爆文。
+    表头：title, content, publish_time, likes, collects, comments, followers
+    """
+    import pandas as pd
+    from datetime import date, timedelta
+    import hashlib
+    import asyncio
 
-    embedding = get_embedding(f"{title}\n{content}")
+    def parse_publish_time(tag):
+        tag = str(tag).strip().lower()
+        today = date.today()
+        try:
+            if tag.endswith("d"):
+                return today - timedelta(days=int(tag[:-1]))
+            elif tag.endswith("w"):
+                return today - timedelta(weeks=int(tag[:-1]))
+            elif tag.endswith("m"):
+                return today - timedelta(days=int(tag[:-1]) * 30)
+        except (ValueError, IndexError):
+            pass
+        return None
 
-    async with pool.connection() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("""
-                INSERT INTO viral_articles
-                (work_id, title, content, author, author_followers, platform,
-                 note_url, likes, collects, comments, embedding)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (work_id) DO NOTHING
-            """, (
-                note.get("workId"),
-                title,
-                content,
-                note.get("accountNickname"),
-                0,
-                "小红书",
-                note.get("workUrl"),
-                note.get("workLikedCount"),
-                note.get("workCollectedCount"),
-                note.get("workCommentsCount"),
-                embedding,
-            ))
+    def safe_int(val, default=0):
+        if pd.isna(val):
+            return default
+        try:
+            return int(float(val))
+        except (ValueError, TypeError):
+            return default
 
+    def make_work_id(title):
+        return "manual_" + hashlib.md5(title.encode("utf-8")).hexdigest()[:16]
 
-# ========== 5. 批量抓取 ==========
-async def fetch_and_save(keyword: str, limit: int = 20):
-    """搜一批红狐笔记，存进数据库"""
-    # 红狐 SDK 是同步的，扔到别的线程去跑，别阻塞事件循环
-    notes = await asyncio.to_thread(search_xhs_notes, keyword, "4", limit)
+    df = pd.read_excel(path)
 
-    inserted = 0
+    success = 0
     skipped = 0
 
-    for note in notes:
-        work_id = note.get("workId")
-        try:
-            async with pool.connection() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        "SELECT 1 FROM viral_articles WHERE work_id = %s",
-                        (work_id,)
-                    )
-                    exists = await cur.fetchone() is not None
+    for i, row in df.iterrows():
+        title = str(row.get("title", "")).strip()
+        if not title or title == "nan":
+            skipped += 1
+            continue
 
-            if exists:
-                skipped += 1
-                continue
+        content = str(row.get("content", "")).strip()
+        if content == "nan":
+            content = ""
 
-            await save_viral_note(note)
-            inserted += 1
-            print(f"✅ {note.get('workTitle')}")
-        except Exception as e:
-            print(f"❌ 失败: {e}")
+        publish_date = parse_publish_time(row.get("publish_time", ""))
+        likes = safe_int(row.get("likes"))
+        collects = safe_int(row.get("collects"))
+        comments = safe_int(row.get("comments"))
+        followers = safe_int(row.get("followers"))
 
-    print(f"新增 {inserted} 条，跳过重复 {skipped} 条")
-    return {"total": len(notes), "success": inserted, "skipped": skipped}
+        work_id = make_work_id(title)
+        embedding = get_embedding(f"{title}\n{content}")
+
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    INSERT INTO viral_articles
+                    (work_id, title, content, author_followers, platform,
+                     likes, collects, comments, embedding, publish_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (work_id) DO NOTHING
+                """, (
+                    work_id, title, content, followers, "小红书",
+                    likes, collects, comments, embedding, publish_date
+                ))
+                # 用 rowcount 判断是否真的插入了
+                if cur.rowcount > 0:
+                    success += 1
+                else:
+                    skipped += 1
+
+        await asyncio.sleep(0.5)
+
+    return {"total": len(df), "success": success, "skipped": skipped}
 
 
-# ========== 6. 检索 ==========
+# ========== 5. 检索 ==========
 async def search_viral_articles(query: str, limit: int = 5):
     """先按向量粗筛，再按点赞排序取前 N 条"""
     query_embedding = get_embedding(query)

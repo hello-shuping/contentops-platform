@@ -261,8 +261,22 @@
                         <path d="M6 14l6 6 6-6"/>
                     </svg>
                 </button>
-                <button class="tool-btn" title="导出爬取的爆文" onclick="downloadViral()">爆文库</button>
-                <button class="tool-btn" title="爬取小红书爆文" onclick="fetchViral()">爬爆文</button>
+                <button class="tool-btn" title="导入爆文" onclick="document.getElementById('viralInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 20V8"/>
+                        <path d="M5 11l3-4 3 4"/>
+                        <path d="M16 20V8"/>
+                        <path d="M13 11l3-4 3 4"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" title="导出爆文" onclick="downloadViral()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 4v12"/>
+                        <path d="M5 12l3 4 3-4"/>
+                        <path d="M16 4v12"/>
+                        <path d="M13 12l3 4 3-4"/>
+                    </svg>
+                </button>
                 <button class="tool-btn" onclick="checkOriginality()">原创检测</button>
             </div>
             <div class="input-row">
@@ -270,6 +284,7 @@
                 <button id="send" onclick="send()">发送</button>
             </div>
             <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="uploadExcel()">
+            <input type="file" id="viralInput" accept=".xlsx,.xls" style="display:none" onchange="uploadViral()">
         </div>
     </div>
 
@@ -394,6 +409,37 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
+        async function uploadViral() {
+            const fileInput = document.getElementById('viralInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const ai = addMsg("ai", "正在导入爆文，请稍候...");
+            ai.cursor.remove();
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const resp = await fetch("/import_viral_articles", {
+                    method: "POST",
+                    headers: {"X-Auth-Key": AUTH_KEY},
+                    body: formData
+                });
+                let result = {};
+                try { result = await resp.json(); } catch (_) {}
+                if (resp.ok) {
+                    ai.textEl.textContent = "✅ " + (result.msg || "导入成功");
+                } else {
+                    ai.textEl.textContent = "❌ 导入失败：" + (result.detail || "未知错误");
+                }
+            } catch (e) {
+                ai.textEl.textContent = "❌ 上传出错：" + e.message;
+            }
+            fileInput.value = "";
+            chat.scrollTop = chat.scrollHeight;
+        }
+
         async function downloadExcel() {
             const ai = addMsg("ai", "正在导出...");
             ai.cursor.remove();
@@ -446,34 +492,6 @@
                 ai.textEl.textContent = "✅ 爆文导出成功，请查看下载文件夹";
             } catch (e) {
                 ai.textEl.textContent = "❌ 导出出错：" + e.message;
-            }
-            chat.scrollTop = chat.scrollHeight;
-        }
-
-        async function fetchViral() {
-            const keyword = prompt("输入关键词（比如：考研）：");
-            if (!keyword || !keyword.trim()) return;
-
-            const ai = addMsg("ai", `正在爬取「${keyword}」相关爆文，请稍候...`);
-            ai.cursor.remove();
-
-            const formData = new FormData();
-            formData.append("keyword", keyword);
-
-            try {
-                const resp = await fetch("/fetch_viral_articles", {
-                    method: "POST",
-                    headers: {"X-Auth-Key": AUTH_KEY},
-                    body: formData
-                });
-                const result = await resp.json();
-                if (resp.ok) {
-                    ai.textEl.textContent = "✅ " + result.result;
-                } else {
-                    ai.textEl.textContent = "❌ 爬取出错：" + (result.detail || "未知错误");
-                }
-            } catch (e) {
-                ai.textEl.textContent = "❌ 请求出错：" + e.message;
             }
             chat.scrollTop = chat.scrollHeight;
         }

@@ -1,7 +1,6 @@
 # tools/polish_content.py
 # 润色文案
 
-
 async def polish_content(text: str, style: str = "正式") -> str:
     style_map = {
         "正式": "保留原意和长度，把口语化表达改成书面语，不扩写",

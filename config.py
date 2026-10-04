@@ -28,8 +28,7 @@ class Config:
     EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "")
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "")
 
-    # RedFox
-    REDFOX_API_KEY = os.getenv("REDFOX_API_KEY", "")
+ 
     SHOWAPI_APPKEY = os.getenv("SHOWAPI_APPKEY", "")
 
 config = Config()

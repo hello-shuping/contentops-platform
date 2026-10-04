@@ -30,3 +30,7 @@ nohup.out
 
 # 系统
 .DS_Store
+
+# 个人数据产出
+analysis/golden_standard.json
+analysis/viral_title_patterns.json

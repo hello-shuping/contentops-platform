@@ -12,7 +12,7 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "topic": {
                         "type": "string",
-                        "description": "领域或方向，比如'考研'、'考研英语'、'职场沟通'",
+                        "description": "领域或方向，比如'INFP'、'MBTI 16 型人格'、'内耗'",
                     },
                     "goals": {
                         "type": "array",
@@ -43,7 +43,7 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "topic": {
                         "type": "string",
-                        "description": "主题。如果用户提到了平台（小红书/知乎/公众号），把它一起写进 topic，比如'小红书考研文案'",
+                        "description": "主题。如果用户提到了平台（小红书/知乎/公众号），把它一起写进 topic，比如'小红书 INFP 文案'",
                     },
                     "count": {
                         "type": "integer",
@@ -71,7 +71,7 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "topic": {
                         "type": "string",
-                        "description": "主题。如果用户提到了平台（小红书/知乎/公众号），把它一起写进 topic，比如'小红书考研文案'",
+                        "description": "主题。如果用户提到了平台（小红书/知乎/公众号），把它一起写进 topic，比如'小红书 INFP 文案'",
                     },
                     "word_count": {
                         "type": "integer",
